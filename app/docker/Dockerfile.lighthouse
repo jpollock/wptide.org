@@ -24,8 +24,23 @@ RUN echo @edge https://dl-cdn.alpinelinux.org/alpine/edge/community >> /etc/apk/
     freetype@edge \
     harfbuzz@edge \
     ttf-freefont@edge \
-    libstdc++@edge
-RUN npm install --location=global npm
+    libstdc++@edge \
+    # Add these additional dependencies
+    dbus@edge \
+    mesa-dri-gallium@edge \
+    mesa-gl@edge \
+    libdrm@edge \
+    brotli-libs@edge \
+    # Additional dependencies that might be needed
+    xvfb@edge \
+    libx11@edge \
+    libxcomposite@edge \
+    libxdamage@edge \
+    libxext@edge \
+    libxi@edge \
+    libxtst@edge \
+    alsa-lib@edge
+RUN npm install --location=global npm@8
 RUN npm ci --ignore-scripts
 
 EXPOSE 8080
