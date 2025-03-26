@@ -42,6 +42,15 @@ usage:
 	@echo "\033[0;35mdelete.files\033[0m\t\tDeletes all files and directories recursively and multi-threaded in the Cloud Storage bucket"
 	@echo "\033[0;35mdelete.firestore\033[0m\tDeletes all data from the Firestore database"
 	@echo "\033[0;35mdelete.scheduler\033[0m\tDeletes the cron schedule for the Sync Server from Google Cloud Scheduler"
+	@echo "\n\033[0;34m--- Destroy ---\033[0m"
+	@echo "\033[0;35mdestroy\033[0m\t\t\t\033[0;31mWARNING: Destroys all GCP resources created by this project\033[0m"
+	@echo "\033[0;35mdestroy.cloudrun\033[0m\t\tDestroys all Cloud Run services (lighthouse-server, phpcs-server, sync-server)"
+	@echo "\033[0;35mdestroy.functions\033[0m\tDestroys all Cloud Functions (api, spec)"
+	@echo "\033[0;35mdestroy.pubsub\033[0m\t\tDestroys all Pub/Sub topics and subscriptions"
+	@echo "\033[0;35mdestroy.iam\033[0m\t\tDestroys IAM service accounts and bindings"
+	@echo "\033[0;35mdestroy.firebase\033[0m\tDestroys Firebase hosting configuration"
+	@echo "\033[0;35mdestroy.bucket\033[0m\t\tDestroys the Cloud Storage bucket (after emptying it)"
+	@echo "\033[0;35mdestroy.appengine\033[0m\tAttempts to disable App Engine (if possible)"
 	@echo "\n\033[0;34m--- Download ---\033[0m"
 	@echo "\033[0;35mdownload.keys\033[0m\t\tDownloads a very permissive \033[0;37mservice-account.json\033[0m for local development (do not use with GitHub Actions)"
 	@echo "\n"
@@ -206,7 +215,20 @@ describe.sync: setup
 	@gcloud run services describe sync-server --format 'value(status.url)'
 
 delete.files:
-	@gsutil -m rm -r gs://${GOOGLE_CLOUD_STORAGE_BUCKET_NAME}/**
+	@echo "Deleting files from bucket..."
+	@echo "Using bucket: ${GOOGLE_CLOUD_STORAGE_BUCKET_NAME}"
+	@BUCKET_NAME="${GOOGLE_CLOUD_STORAGE_BUCKET_NAME}"; \
+	if [[ ! $$BUCKET_NAME == gs://* ]]; then \
+		BUCKET_NAME="gs://$$BUCKET_NAME"; \
+	fi; \
+	echo "Bucket name: $$BUCKET_NAME"; \
+	if gsutil ls -b $$BUCKET_NAME > /dev/null 2>&1; then \
+		echo "Bucket $$BUCKET_NAME exists."; \
+		gsutil -o "GSUtil:parallel_process_count=1" rm -r $$BUCKET_NAME/** 2>/dev/null || true; \
+		echo "Files deleted from bucket."; \
+	else \
+		echo "Bucket $$BUCKET_NAME does not exist. Skipping."; \
+	fi
 
 delete.firestore:
 	@firebase --project=${GOOGLE_CLOUD_PROJECT} firestore:delete --force --all-collections
@@ -221,3 +243,83 @@ download.keys: setup
 		--role=roles/owner
 	@gcloud iam service-accounts keys create app/service-account.json \
 		--iam-account=local-server@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com
+
+# Destroy commands - use with caution as they permanently delete resources
+
+destroy.cloudrun: setup
+	@echo "\033[0;31mWARNING: This will delete all Cloud Run services. Are you sure? (y/n)\033[0m"
+	@read -p "" confirm && [ "$$confirm" = "y" ] || exit 1
+	@gcloud run services delete lighthouse-server --quiet || true
+	@gcloud run services delete phpcs-server --quiet || true
+	@gcloud run services delete sync-server --quiet || true
+	@echo "Cloud Run services deleted."
+
+destroy.functions: setup
+	@echo "\033[0;31mWARNING: This will delete all Cloud Functions. Are you sure? (y/n)\033[0m"
+	@read -p "" confirm && [ "$$confirm" = "y" ] || exit 1
+	@gcloud functions delete api --quiet || true
+	@gcloud functions delete spec --quiet || true
+	@echo "Cloud Functions deleted."
+
+destroy.pubsub: setup
+	@echo "\033[0;31mWARNING: This will delete all Pub/Sub topics and subscriptions. Are you sure? (y/n)\033[0m"
+	@read -p "" confirm && [ "$$confirm" = "y" ] || exit 1
+	@gcloud pubsub subscriptions delete lighthouse-server --quiet || true
+	@gcloud pubsub subscriptions delete lighthouse-server-dead-letter --quiet || true
+	@gcloud pubsub subscriptions delete phpcs-server --quiet || true
+	@gcloud pubsub subscriptions delete phpcs-server-dead-letter --quiet || true
+	@gcloud pubsub subscriptions delete sync-server --quiet || true
+	@gcloud pubsub subscriptions delete sync-server-dead-letter --quiet || true
+	@gcloud pubsub topics delete MESSAGE_TYPE_LIGHTHOUSE_REQUEST --quiet || true
+	@gcloud pubsub topics delete MESSAGE_TYPE_LIGHTHOUSE_REQUEST_DEAD_LETTER --quiet || true
+	@gcloud pubsub topics delete MESSAGE_TYPE_PHPCS_REQUEST --quiet || true
+	@gcloud pubsub topics delete MESSAGE_TYPE_PHPCS_REQUEST_DEAD_LETTER --quiet || true
+	@gcloud pubsub topics delete MESSAGE_TYPE_SYNC_REQUEST --quiet || true
+	@gcloud pubsub topics delete MESSAGE_TYPE_SYNC_REQUEST_DEAD_LETTER --quiet || true
+	@echo "Pub/Sub topics and subscriptions deleted."
+
+destroy.iam: setup
+	@echo "\033[0;31mWARNING: This will delete IAM service accounts and bindings. Are you sure? (y/n)\033[0m"
+	@read -p "" confirm && [ "$$confirm" = "y" ] || exit 1
+	@gcloud projects remove-iam-policy-binding ${GOOGLE_CLOUD_PROJECT} \
+		--member=serviceAccount:service-${GOOGLE_CLOUD_PROJECT_NUMBER}@gcp-sa-pubsub.iam.gserviceaccount.com \
+		--role=roles/iam.serviceAccountTokenCreator || true
+	@gcloud iam service-accounts delete tide-run-server@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com --quiet || true
+	@gcloud iam service-accounts delete local-server@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com --quiet || true
+	@echo "IAM service accounts and bindings deleted."
+
+destroy.firebase: setup
+	@echo "\033[0;31mWARNING: This will delete Firebase hosting configuration. Are you sure? (y/n)\033[0m"
+	@read -p "" confirm && [ "$$confirm" = "y" ] || exit 1
+	@firebase --project=${GOOGLE_CLOUD_PROJECT} hosting:disable --force || true
+	@echo "Firebase hosting configuration deleted."
+
+destroy.bucket: setup
+	@echo "\033[0;31mWARNING: This will delete the Cloud Storage bucket. Are you sure? (y/n)\033[0m"
+	@read -p "" confirm && [ "$$confirm" = "y" ] || exit 1
+	@echo "Using bucket: ${GOOGLE_CLOUD_STORAGE_BUCKET_NAME}"
+	@gsutil rb "gs://${GOOGLE_CLOUD_STORAGE_BUCKET_NAME}"
+
+destroy.appengine: setup
+	@echo "\033[0;31mWARNING: This will attempt to disable App Engine. Are you sure? (y/n)\033[0m"
+	@read -p "" confirm && [ "$$confirm" = "y" ] || exit 1
+	@echo "Note: App Engine cannot be fully deleted, but we'll attempt to disable it."
+	@gcloud app services delete default --quiet || true
+	@echo "App Engine services deleted (App Engine itself cannot be fully removed from a project)."
+
+# Master destroy command that runs all individual destroy commands in the appropriate order
+destroy: setup
+	@echo "\033[0;31mWARNING: This will destroy ALL GCP resources created by this project. This action is IRREVERSIBLE.\033[0m"
+	@echo "\033[0;31mAre you absolutely sure you want to proceed? Type 'yes' to confirm:\033[0m"
+	@read -p "" confirm && [ "$$confirm" = "yes" ] || exit 1
+	@echo "\033[0;31mStarting destruction of all resources...\033[0m"
+	@$(MAKE) delete.scheduler || true
+	@$(MAKE) destroy.pubsub || true
+	@$(MAKE) destroy.cloudrun || true
+	@$(MAKE) destroy.functions || true
+	@$(MAKE) destroy.firebase || true
+	@$(MAKE) delete.firestore || true
+	@$(MAKE) destroy.bucket || true
+	@$(MAKE) destroy.iam || true
+	@$(MAKE) destroy.appengine || true
+	@echo "\033[0;32mAll resources have been destroyed.\033[0m"
