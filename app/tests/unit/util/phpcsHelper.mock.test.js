@@ -26,7 +26,11 @@ describe('phpcsHelpers', () => {
         expect(spy.mock.calls[4][0]).toContain('Missing data for PHP v7.3');
         expect(spy.mock.calls[5][0]).toContain('Missing data for PHP v7.4');
         expect(spy.mock.calls[6][0]).toContain('Missing data for PHP v8.0');
-        expect(spy).toHaveBeenCalledTimes(7);
+        expect(spy.mock.calls[7][0]).toContain('Missing data for PHP v8.1');
+        expect(spy.mock.calls[8][0]).toContain('Missing data for PHP v8.2');
+        expect(spy.mock.calls[9][0]).toContain('Missing data for PHP v8.3');
+        expect(spy.mock.calls[10][0]).toContain('Missing data for PHP v8.4');
+        expect(spy).toHaveBeenCalledTimes(11);
         spy.mockRestore();
         phpcsRunner.mockClear();
     });
@@ -38,7 +42,7 @@ describe('phpcsHelpers', () => {
         expect(data.report.compatible.length).toEqual(0);
         expect(data.report.incompatible.length).toEqual(0);
         expect(spy).toHaveBeenCalledWith('Cannot convert undefined or null to object');
-        expect(spy).toHaveBeenCalledTimes(7);
+        expect(spy).toHaveBeenCalledTimes(11);
         spy.mockRestore();
         phpcsRunner.mockClear();
     });
