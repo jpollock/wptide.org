@@ -36,6 +36,10 @@ of node then is installed on your computer.
 * Install [Make for Windows](http://gnuwin32.sourceforge.net/packages/make.htm) (optional) 
   (Windows only)
 
+::: tip Cross-Platform Docker Builds
+If you're using a non-linux/amd64 system (such as macOS with Apple Silicon/M1/M2), the Makefile includes support for cross-platform Docker builds. This ensures containers built on your system will work correctly in GCP Cloud Run. See the [Cross-Platform Builds](../google-cloud/#cross-platform-builds) section in the Google Cloud documentation for details.
+:::
+
 ## Firebase Project
 
 If you don't have a Firebase project, then start by creating a new project from the 
