@@ -48,6 +48,27 @@ services that Tide requires during deployment.
 The Docker Images need to be built and then pushed to Container Registry for use on Cloud 
 Run. You can also run the Docker containers for local development with the `start` commands.
 
+### Cross-Platform Builds
+
+When building Docker images on non-linux/amd64 systems (such as macOS with Apple Silicon/M1/M2), the Makefile automatically detects your architecture and applies the necessary platform flags to ensure the containers will run correctly in GCP Cloud Run (which requires linux/amd64).
+
+#### Setup for Cross-Platform Building
+
+Before building Docker images on a non-linux/amd64 system, you should set up the cross-platform build environment:
+
+    make setup.crossplatform
+
+This command installs QEMU emulation layers and configures Docker buildx for cross-platform builds. It only needs to be run once on your system.
+
+If you prefer to set up components individually:
+
+    make setup.qemu    # Install QEMU emulation layers
+    make setup.buildx  # Configure Docker buildx
+
+#### Building Cross-Platform Images
+
+The standard build commands will automatically detect if you're on ARM64 architecture and apply the appropriate platform flag. No changes to your workflow are needed - the system handles the architecture differences transparently.
+
 ### Build Images
 
 Build the Lighthouse Server Cloud Run image:

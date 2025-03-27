@@ -73,6 +73,8 @@ Currently, you can:
 * [Install](installation/) Tide to help test and develop locally.
 * Deploy Tide to [Google Cloud](google-cloud/) and run your own variation of Tide in the 
   cloud.
+* Learn about [Cross-Platform Development](cross-platform/) for building Docker images on 
+  non-linux/amd64 systems like macOS with Apple Silicon.
 
 In the future, we hope to provide authors with the ability to use Tide as a service to test 
 their plugins or themes during development.
